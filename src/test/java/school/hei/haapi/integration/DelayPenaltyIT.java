@@ -13,13 +13,16 @@ import school.hei.haapi.endpoint.rest.client.ApiClient;
 import school.hei.haapi.endpoint.rest.client.ApiException;
 import school.hei.haapi.endpoint.rest.model.CreateDelayPenaltyChange;
 import school.hei.haapi.endpoint.rest.model.DelayPenalty;
+import school.hei.haapi.endpoint.rest.model.Fee;
 import school.hei.haapi.endpoint.rest.security.cognito.CognitoComponent;
 import school.hei.haapi.integration.conf.AbstractContextInitializer;
 import school.hei.haapi.integration.conf.TestUtils;
 
 import java.time.Instant;
+import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.springframework.boot.test.context.SpringBootTest.WebEnvironment.RANDOM_PORT;
 import static school.hei.haapi.integration.conf.TestUtils.*;
 
@@ -30,27 +33,27 @@ import static school.hei.haapi.integration.conf.TestUtils.*;
 public class DelayPenaltyIT {
 
     @MockBean
-  private SentryConf sentryConf;
+    private SentryConf sentryConf;
 
-  @MockBean
-  private CognitoComponent cognitoComponentMock;
+    @MockBean
+    private CognitoComponent cognitoComponentMock;
 
-  private static ApiClient anApiClient(String token) {
-    return TestUtils.anApiClient(token, ContextInitializer.SERVER_PORT);
-  }
+    private static ApiClient anApiClient(String token) {
+        return TestUtils.anApiClient(token, ContextInitializer.SERVER_PORT);
+    }
 
-  public static school.hei.haapi.endpoint.rest.model.DelayPenalty delayPenalty1() {
-    school.hei.haapi.endpoint.rest.model.DelayPenalty delayPenalty = new school.hei.haapi.endpoint.rest.model.DelayPenalty();
-    delayPenalty.setId("delayPenalty1_id");
-    delayPenalty.setInterestPercent(0);
-    delayPenalty.setInterestTimerate(school.hei.haapi.endpoint.rest.model.DelayPenalty.InterestTimerateEnum.fromValue("Daily"));
-    delayPenalty.setGraceDelay(0);
-    delayPenalty.setApplicabilityDelayAfterGrace(0);
-    delayPenalty.setCreationDatetime(Instant.parse("2023-03-31T06:00:45.279Z"));
-    return delayPenalty;
-  }
+    public static school.hei.haapi.endpoint.rest.model.DelayPenalty delayPenalty1() {
+        school.hei.haapi.endpoint.rest.model.DelayPenalty delayPenalty = new school.hei.haapi.endpoint.rest.model.DelayPenalty();
+        delayPenalty.setId("delayPenalty1_id");
+        delayPenalty.setInterestPercent(0);
+        delayPenalty.setInterestTimerate(school.hei.haapi.endpoint.rest.model.DelayPenalty.InterestTimerateEnum.fromValue("Daily"));
+        delayPenalty.setGraceDelay(0);
+        delayPenalty.setApplicabilityDelayAfterGrace(0);
+        delayPenalty.setCreationDatetime(Instant.parse("2023-03-31T06:00:45.279Z"));
+        return delayPenalty;
+    }
 
-  public static CreateDelayPenaltyChange delayPenaltyChange1() {
+    public static CreateDelayPenaltyChange delayPenaltyChange1() {
         CreateDelayPenaltyChange delayPenaltyChange = new CreateDelayPenaltyChange();
         delayPenaltyChange.setGraceDelay(1);
         delayPenaltyChange.setApplicabilityDelayAfterGrace(1);
@@ -59,24 +62,24 @@ public class DelayPenaltyIT {
     }
 
 
+    @BeforeEach
+    public void setUp() {
+        setUpCognito(cognitoComponentMock);
+    }
 
-  @BeforeEach
-  public void setUp() {
-    setUpCognito(cognitoComponentMock);
-  }
+    @Test
+    void student_read_ok() throws ApiException {
+        ApiClient student1Client = anApiClient(STUDENT1_TOKEN);
+        PayingApi api = new PayingApi(student1Client);
 
-  @Test
-  void student_read_ok() throws ApiException {
-    ApiClient student1Client = anApiClient(STUDENT1_TOKEN);
-    PayingApi api = new PayingApi(student1Client);
+        DelayPenalty actualDelay = api.getDelayPenalty();
 
-    DelayPenalty actualDelay = api.getDelayPenalty();
+        assertEquals(delayPenalty1(), actualDelay);
 
-    assertEquals(delayPenalty1(), actualDelay);
+    }
 
-  }
 
-  @Test
+    @Test
     void student_write_ko() throws ApiException {
         ApiClient student1Client = anApiClient(STUDENT1_TOKEN);
         PayingApi api = new PayingApi(student1Client);
@@ -88,14 +91,27 @@ public class DelayPenaltyIT {
         assertEquals(delayPenalty1(), actualDelay);
     }
 
+    @Test
+    void manager_write_ok() throws ApiException {
+        ApiClient managerClient = anApiClient(MANAGER1_TOKEN);
+        PayingApi payingApi = new PayingApi(managerClient);
+        List<Fee> beforeChanges = payingApi.getStudentFees(STUDENT1_ID, 0, 50, "LATE");
 
-  static class ContextInitializer extends AbstractContextInitializer {
-    public static final int SERVER_PORT = anAvailableRandomPort();
+        DelayPenalty delayPenalty = payingApi.createDelayPenaltyChange(delayPenaltyChange1());
+        List<Fee> actualFees = payingApi.getStudentFees(STUDENT1_ID, 0, 50, "LATE");
+        assertEquals(3, delayPenalty.getGraceDelay());
+        assertTrue(actualFees.containsAll(beforeChanges));
 
-    @Override
-    public int getServerPort() {
-      return SERVER_PORT;
     }
-  }
+
+
+    static class ContextInitializer extends AbstractContextInitializer {
+        public static final int SERVER_PORT = anAvailableRandomPort();
+
+        @Override
+        public int getServerPort() {
+            return SERVER_PORT;
+        }
+    }
 }
 
