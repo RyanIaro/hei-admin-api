@@ -13,6 +13,7 @@ import school.hei.haapi.repository.DelayPenaltyRepository;
 @Slf4j
 public class DelayPenaltyService {
     private final DelayPenaltyRepository delayPenaltyRepository;
+    private final FeeService feeService;
 
     public DelayPenalty getDelayPenalty() {
         int numberOfExistingDelayPenaltyConfigs = delayPenaltyRepository.countPenaltyConfigs();
@@ -23,6 +24,7 @@ public class DelayPenaltyService {
     }
 
     public DelayPenalty updateDelayPenalty(DelayPenalty changes) {
+        feeService.scheduleApplyDelayPenalty();
         return delayPenaltyRepository.save(changes);
     }
 }

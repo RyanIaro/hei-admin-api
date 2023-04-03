@@ -74,6 +74,7 @@ public class FeeService {
                 page.getValue() - 1,
                 pageSize.getValue(),
                 Sort.by(DESC, "dueDatetime"));
+        scheduleApplyDelayPenalty();
         if (status != null) {
             return feeRepository.getFeesByStudentIdAndStatus(studentId, status, pageable);
         }

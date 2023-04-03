@@ -76,6 +76,8 @@ public class DelayPenaltyIT {
 
   }
 
+
+
   @Test
     void student_write_ko() throws ApiException {
         ApiClient student1Client = anApiClient(STUDENT1_TOKEN);
